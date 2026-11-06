@@ -2,7 +2,7 @@ import { facts } from './content.mjs';
 
 export const limits = { minPlayers: 3, maxPlayers: 8, name: 24 };
 const roundCount = 5;
-const durations = { bluff: 35_000, vote: 25_000 };
+const durations = { briefing: 2400, bluff: 35_000, vote: 25_000 };
 const normalize = value => value.toLowerCase().replaceAll('ё', 'е').replace(/[^\p{L}\p{N}]/gu, '');
 const numberWords = new Map([['три', '3'], ['семь', '7']]);
 const answerKey = value => {
@@ -29,12 +29,17 @@ function enter(game, phase, now) {
   game.deadline = durations[phase] ? now + durations[phase] : null;
 }
 
+function brief(game, nextPhase, now) {
+  game.nextPhase = nextPhase;
+  enter(game, 'briefing', now);
+}
+
 function beginRound(game, now) {
   game.bluffs = {};
   game.votes = {};
   game.options = [];
   game.result = null;
-  enter(game, 'bluff', now);
+  brief(game, 'bluff', now);
 }
 
 function beginVote(game, now, random) {
@@ -48,7 +53,7 @@ function beginVote(game, now, random) {
     if (!options.some(option => answerKey(option.text) === answerKey(text))) options.push({ text });
   }
   game.options = shuffle(options, random).map((option, index) => ({ ...option, id: String(index) }));
-  enter(game, 'vote', now);
+  brief(game, 'vote', now);
 }
 
 function reveal(game, now) {
@@ -62,12 +67,14 @@ function reveal(game, now) {
   }
   for (const id of game.players) game.scores[id] += points[id];
   game.result = { options, points };
+  game.history.push({ prompt: game.deck[game.round][0], ...game.result });
   enter(game, 'reveal', now);
 }
 
 export function tick(game, now, random = Math.random) {
   if (game.deadline === null || now < game.deadline) return;
-  if (game.phase === 'bluff') beginVote(game, now, random);
+  if (game.phase === 'briefing') enter(game, game.nextPhase, now);
+  else if (game.phase === 'bluff') beginVote(game, now, random);
   else reveal(game, now);
 }
 
@@ -78,7 +85,7 @@ export function act(game, { id, isHost, players }, action, now, random = Math.ra
     if (!isHost) return 'Партию запускает хост.';
     if (players.length < limits.minPlayers) return 'Нужно хотя бы три игрока.';
     Object.assign(game, {
-      players, round: 0, deck: shuffle(facts, random).slice(0, roundCount),
+      players, round: 0, deck: shuffle(facts, random).slice(0, roundCount), history: [],
       scores: Object.fromEntries(players.map(player => [player, 0])),
     });
     beginRound(game, now);
@@ -86,8 +93,13 @@ export function act(game, { id, isHost, players }, action, now, random = Math.ra
   }
   if (game.phase === 'reveal' && action.type === 'next' && isHost) {
     game.round++;
-    if (game.round === roundCount) enter(game, 'finished', now);
+    if (game.round === roundCount) brief(game, 'winner', now);
     else beginRound(game, now);
+    return;
+  }
+  if (action.type === 'next-finale' && ['winner', 'moment'].includes(game.phase)) {
+    if (!isHost) return 'Выпуски листает хост.';
+    enter(game, game.phase === 'winner' ? 'moment' : 'finished', now);
     return;
   }
   if (!game.players?.includes(id)) return 'Дождись следующей партии.';
@@ -120,10 +132,17 @@ export function act(game, { id, isHost, players }, action, now, random = Math.ra
 
 export function view(game, id) {
   const { phase, step, deadline } = game;
-  const data = { phase, step, deadline };
+  const data = { phase, step, deadline, duration: durations[phase] ?? null };
   if (phase === 'lobby') return data;
   data.scores = game.scores;
-  if (phase === 'finished') return data;
+  if (phase === 'briefing') return { ...data, nextPhase: game.nextPhase, round: [game.round + 1, roundCount] };
+  if (phase === 'winner') return data;
+  if (phase === 'moment') {
+    const headlines = game.history.flatMap(({ options }) => options.filter(option => option.author));
+    const moment = headlines.reduce((best, option) => option.voters.length > (best?.voters.length ?? 0) ? option : best, null);
+    return { ...data, moment };
+  }
+  if (phase === 'finished') return { ...data, history: game.history };
   data.round = [game.round + 1, roundCount];
   data.prompt = game.deck[game.round][0];
   if (phase === 'reveal') return { ...data, result: game.result };

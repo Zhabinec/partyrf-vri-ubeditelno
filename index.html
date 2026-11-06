@@ -3,20 +3,41 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0b0a0e">
-  <title>Ври убедительно — игра для компании</title>
+  <meta name="theme-color" content="#e6d7ba">
+  <title>Ври убедительно — вечерняя редакция</title>
   <link rel="stylesheet" href="./styles.css">
   <script type="module" src="./src/main.js"></script>
 </head>
 <body>
   <header class="masthead">
-    <a href="./" class="wordmark" aria-label="Ври убедительно, главная"><span class="signal" aria-hidden="true">?</span> ВРИ УБЕДИТЕЛЬНО</a>
+    <a href="./" class="wordmark" aria-label="Ври убедительно, главная">
+      <span class="signal" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2c1.4 6.4 3.6 8.6 10 10-6.4 1.4-8.6 3.6-10 10C10.6 15.6 8.4 13.4 2 12 8.4 10.6 10.6 8.4 12 2Z"/></svg></span>
+      <span>Ври убедительно</span>
+    </a>
     <span class="badge" id="room-label">ИГРА ДЛЯ КОМПАНИИ</span>
+    <details class="header-menu" id="header-menu">
+      <summary class="menu-toggle">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        Меню
+      </summary>
+      <div class="menu-panel">
+        <button type="button" class="header-button" id="sound-toggle" aria-haspopup="dialog" aria-controls="sound-settings">Звук</button>
+        <button type="button" class="header-button" id="leave-room" hidden>Выйти из комнаты</button>
+      </div>
+    </details>
   </header>
+  <dialog id="sound-settings" class="sound-settings" aria-labelledby="sound-title">
+    <h2 id="sound-title">Настройки звука</h2>
+    <label for="music-level">Музыка <span id="music-value" aria-hidden="true"></span></label>
+    <input id="music-level" type="range" min="0" max="100" value="100" autofocus>
+    <label for="effects-level">Звуковые эффекты <span id="effects-value" aria-hidden="true"></span></label>
+    <input id="effects-level" type="range" min="0" max="100" value="100">
+    <form method="dialog"><button>Готово</button></form>
+  </dialog>
   <main id="app" class="stage"></main>
   <p id="feedback" class="feedback" role="status" hidden></p>
-  <footer class="footer">ПРИДУМАЙ ВЫДУМКУ <span>·</span> НАЙДИ ПРАВДУ <span>·</span> ПРОВЕРЬ ДРУЗЕЙ</footer>
+  <footer class="footer">ВЕЧЕРНЯЯ РЕДАКЦИЯ <span>◆</span> ПЕЧАТАЕМ СО СЛОВ ОЧЕВИДЦЕВ</footer>
+  <p class="footer">Музыка · <a href="https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1300010" target="_blank" rel="noopener">Local Forecast — Kevin MacLeod</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></p>
 </body>
 </html>
-
 
