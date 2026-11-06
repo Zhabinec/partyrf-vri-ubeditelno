@@ -72,6 +72,22 @@ h1 { font-size: clamp(2.3rem, 6vw, 5.5rem); font-weight: 950; letter-spacing: -.
 .intro .beats { justify-content: center; }
 .edition { margin-block: 1rem; padding-block: .45rem; border-block: 1px solid var(--edge); font: 700 .78rem/1.4 var(--type); text-transform: uppercase; }
 .edition span { color: var(--red); }
+.imprint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .25rem .8rem;
+  padding-block: .35rem;
+  margin-bottom: .8rem;
+  border-block: 1px solid var(--edge);
+  text-align: start;
+  color: var(--muted);
+  font: 700 clamp(.68rem, 1.6vw, .85rem)/1.4 var(--type);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.imprint span:first-child { color: var(--ink); }
 h2 { font-size: clamp(1.65rem, 3vw, 2.55rem); letter-spacing: -.045em; }
 em { color: var(--red); font-style: normal; }
 .kicker { color: var(--red); margin-bottom: .85rem; }
@@ -162,6 +178,33 @@ button.clipping:hover { border-color: var(--red); }
 .print-scene h1 { text-transform: uppercase; text-wrap: balance; }
 .print-scene p:not(.kicker) { margin: .9rem auto; max-width: 42ch; }
 .print-scene button { width: min(100%, 18rem); }
+.press-stamp {
+  display: inline-block;
+  margin: .4rem 0 1rem;
+  padding: .28rem .65rem;
+  border: 3px double currentColor;
+  color: var(--red);
+  font: 700 .85rem/1.2 var(--type);
+  letter-spacing: .14em;
+  transform: rotate(-4deg);
+}
+.page-turn .press-stamp { animation: press-stamp 320ms 140ms ease-out both; }
+.correction-lead { text-align: center; }
+.correction-lead .topic {
+  padding: .75rem .9rem;
+  border-inline-start: 0;
+  border-block: 3px double var(--edge);
+  background: transparent;
+}
+.correction-lead mark { background: var(--field); color: var(--red); box-decoration-break: clone; }
+.correction-notes { margin-top: 1.5rem; }
+.page-turn .correction-notes { animation: print-drop 380ms 520ms ease-out both; }
+.print-scene .reader-letter { padding: .55rem .75rem; border-block: 1px dashed var(--edge); }
+.reader-letter strong { display: block; color: var(--red); font: 700 .8rem/1.4 var(--type); text-transform: uppercase; }
+@keyframes press-stamp {
+  from { opacity: 0; transform: rotate(-9deg) scale(1.2); }
+  to { opacity: 1; transform: rotate(-4deg); }
+}
 .page-turn { animation: print-drop 300ms ease-out both; }
 @keyframes print-drop { from { opacity: .3; transform: translateY(.65rem); } }
 .header-menu { position: relative; z-index: 2; grid-column: 3; grid-row: 1; }

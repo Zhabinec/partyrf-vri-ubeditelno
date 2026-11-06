@@ -4,13 +4,15 @@ const escape = value => String(value).replace(/[&<>"']/g, char => ({
 
 const button = (label, action) => `<button type="button" data-action="${action}">${label}</button>`;
 const kicker = text => `<p class="kicker">${text}</p>`;
+const imprint = text => `<div class="imprint"><span>Вечерний вестник</span><span>${text}</span></div>`;
+const stamp = text => `<span class="press-stamp">${text}</span>`;
 
 export function entrance(code, testBots = false) {
   return `
     <section class="intro">
-      ${kicker('ВЕЧЕРНЯЯ ГАЗЕТА · 3–8 ИГРОКОВ')}
+      ${imprint('Год издания 1952')}
       <h1>Ври <em>убедительно</em></h1>
-      <p class="edition">Особый выпуск <span>◆</span> Издаётся со слов очевидцев</p>
+      <p class="edition">Особый выпуск <span>◆</span> Цена 10 коп. <span>◆</span> 3–8 игроков</p>
       <p class="lede">В заметке пропала важная деталь. Допиши её так, чтобы друзья поверили. Потом найди настоящую версию среди чужих выдумок.</p>
       <ol class="beats"><li>Дописать заметку</li><li>Найти правду</li><li>Проверить тираж</li></ol>
     </section>
@@ -41,7 +43,9 @@ function renderRoom(state) {
       vote: ['В печать ушло всё!', 'Редактор перепутал версии. Выбери ту, которая была правдой.'],
       winner: ['Последний выпуск', 'Редакция подвела итоги. Сейчас узнаем, кто набрал больше очков.'],
     }[state.nextPhase];
-    return `<div class="print-scene">${kicker('ЭКСТРЕННЫЙ ВЫПУСК')}<h1>${title}</h1><p>${caption}</p></div>`;
+    return `<div class="print-scene">${imprint('Экстренный выпуск')}
+      ${stamp(state.nextPhase === 'bluff' ? 'В ПЕЧАТЬ' : 'СРОЧНО')}
+      <h1>${title}</h1><p>${caption}</p></div>`;
   }
   if (state.phase === 'lobby') {
     return `${kicker('РЕДАКЦИЯ · ' + state.players.length + ' / 8')}
@@ -55,16 +59,18 @@ function renderRoom(state) {
   if (state.phase === 'winner') {
     const ranked = ranking();
     const winners = ranked.filter(([, score]) => score === ranked[0][1]).map(([id]) => name(id));
-    return `<div class="print-scene">${kicker('ПЕРВАЯ ПОЛОСА')}
+    return `<div class="print-scene">${imprint('Первая полоса')}
+      ${stamp('ИТОГИ ВЫПУСКА')}
       <h1>${ranked[0][1] ? winners.join(' · ') : 'Очков нет'}</h1>
-      <p>${ranked[0][1] ? (winners.length === 1 ? 'Главный редактор выпуска' : 'Победители выпуска') : 'Редакция расходится по домам.'}</p>
+      <p>${ranked[0][1] ? (winners.length === 1 ? 'Главный редактор выпуска' : 'Победители выпуска') + ' · ' + ranked[0][1] + ' очк.' : 'Редакция расходится по домам.'}</p>
       ${finaleButton('Главная утка номера')}</div>`;
   }
   if (state.phase === 'moment') {
     const { moment } = state;
-    return `<div class="print-scene">${kicker('ГЛАВНАЯ УТКА НОМЕРА')}
+    return `<div class="print-scene">${imprint('Главная утка номера')}
       <h1>${moment ? '«' + escape(moment.text) + '»' : 'Утки разлетелись'}</h1>
       <p>${moment ? 'Автор — ' + name(moment.author) + '. Поверили: ' + moment.voters.map(name).join(', ') : 'На выдумки игроков в этом выпуске никто не попался.'}</p>
+      ${moment ? '<p class="reader-letter"><strong>Письмо в редакцию</strong> Что в этой заметке вас убедило?</p>' : ''}
       ${finaleButton('Открыть архив')}</div>`;
   }
   if (state.phase === 'finished') {
@@ -95,11 +101,17 @@ function renderRoom(state) {
           option.own ? `<p class="clipping">${escape(option.text)}<small>Твоя версия</small></p>`
             : `<button type="button" class="clipping" data-action="vote" data-value="${escape(option.id)}">${escape(option.text)}</button>`).join('')}</div>`}`;
   }
-  return `${kicker('ПОПРАВКА · ' + round)}<h1>Редакция <em>уточняет</em></h1>${fact}
+  const truth = state.result.options.find(option => option.truth);
+  const corrected = escape(state.prompt).replace('___', () => '<mark>' + escape(truth.text) + '</mark>');
+  return `<div class="correction-lead">${imprint('Поправка к выпуску ' + round)}
+    ${stamp('ПРОВЕРЕНО')}<h1>Редакция <em>уточняет</em></h1>
+    <p class="topic">${corrected}</p></div>
+    <div class="correction-notes">
+    <h2>Кто поверил</h2>
     <ul class="roster answers">${state.result.options.map(option => `<li${option.truth ? ' class="verified"' : ''}>
-      <span>${escape(option.text)}<small>${option.truth ? 'Правда' : option.author ? 'Выдумка · ' + name(option.author) : 'Выдумка игры'}
+      <span>${escape(option.text)}<small>${option.truth ? 'Подтверждено редакцией' : option.author ? 'Газетная утка · ' + name(option.author) : 'Версия редакции'}
       ${option.voters.length ? ' · Поверили: ' + option.voters.map(name).join(', ') : ''}</small></span></li>`).join('')}</ul>
-    <ul class="roster">${ranking().map(([id, score]) => `<li><span>${name(id)} <small>+${state.result.points[id]} за раунд</small></span><b>${score}</b></li>`).join('')}</ul>
+    <ul class="roster">${ranking().map(([id, score]) => `<li><span>${name(id)} <small>+${state.result.points[id]} за раунд</small></span><b>${score}</b></li>`).join('')}</ul></div>
     ${host ? button(state.round[0] === state.round[1] ? 'Показать итог' : 'Следующий факт', 'next') : waiting('Ждём следующего хода.')}`;
 }
 
