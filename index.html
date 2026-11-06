@@ -28,12 +28,14 @@
   </header>
   <dialog id="sound-settings" class="sound-settings" aria-labelledby="sound-title">
     <h2 id="sound-title">Настройки звука</h2>
+    <p class="sound-note">Музыка играет в комнате. Здесь можно послушать её и настроить громкость.</p>
     <label for="music-level">Музыка <span id="music-value" aria-hidden="true"></span></label>
     <input id="music-level" type="range" min="0" max="100" value="100" autofocus>
     <label for="effects-level">Звуковые эффекты <span id="effects-value" aria-hidden="true"></span></label>
     <input id="effects-level" type="range" min="0" max="100" value="100">
     <form method="dialog"><button>Готово</button></form>
   </dialog>
+  <audio id="background-music" src="./assets/local-forecast.mp3" preload="none" loop hidden></audio>
   <main id="app" class="stage"></main>
   <p id="feedback" class="feedback" role="status" hidden></p>
   <footer class="footer">ВЕЧЕРНЯЯ РЕДАКЦИЯ <span>◆</span> ПЕЧАТАЕМ СО СЛОВ ОЧЕВИДЦЕВ</footer>

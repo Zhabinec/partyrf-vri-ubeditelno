@@ -62,12 +62,14 @@ body {
   padding-block: clamp(1.75rem, 6vw, 5rem);
 }
 .stage.in-room { display: block; }
-.intro { border-block: 4px double var(--ink); padding-block: 1rem; }
+.intro { border-block: 4px double var(--ink); padding-block: 1rem; text-align: center; }
 h1, h2, p { margin: 0; }
 h1, h2 { line-height: 1.02; overflow-wrap: anywhere; }
 h1 { font-size: clamp(2.3rem, 6vw, 5.5rem); font-weight: 950; letter-spacing: -.055em; }
-.intro h1 { font-size: clamp(2.6rem, 6.4vw, 6.3rem); line-height: .92; text-transform: uppercase; text-wrap: balance; }
+.intro h1 { font-size: clamp(1.75rem, 5.4vw, 5.5rem); line-height: .92; text-transform: uppercase; text-wrap: balance; }
 .intro h1 em { display: block; }
+.intro .lede { margin-inline: auto; }
+.intro .beats { justify-content: center; }
 .edition { margin-block: 1rem; padding-block: .45rem; border-block: 1px solid var(--edge); font: 700 .78rem/1.4 var(--type); text-transform: uppercase; }
 .edition span { color: var(--red); }
 h2 { font-size: clamp(1.65rem, 3vw, 2.55rem); letter-spacing: -.045em; }
@@ -84,6 +86,7 @@ em { color: var(--red); font-style: normal; }
 }
 .round { max-width: 57rem; margin-inline: auto; }
 .round h1 { font-size: clamp(2.2rem, 5.5vw, 4.6rem); }
+.entry > :is(.kicker, h2), .round > :is(.kicker, h1) { text-align: center; }
 form { display: grid; gap: .65rem; margin-top: 1.2rem; }
 label { font-weight: 750; }
 input, button {
@@ -138,6 +141,8 @@ time { color: var(--red); font-size: 1.3rem; font-variant-numeric: tabular-nums;
   .masthead .header-menu { grid-column: 2; }
   .wordmark { font-size: .75rem; }
   .badge, .footer { font-size: .65rem; }
+  .intro h1 { font-size: clamp(1.75rem, 8vw, 4.5rem); }
+  .round h1 { font-size: clamp(1.85rem, 6vw, 3rem); }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -201,6 +206,7 @@ button.clipping:hover { border-color: var(--red); }
 }
 .sound-settings::backdrop { background: rgb(0 0 0 / 65%); }
 .sound-settings h2 { margin-bottom: 1.25rem; }
+.sound-note { margin-bottom: 1rem; color: var(--muted); }
 .sound-settings label { display: flex; justify-content: space-between; gap: .75rem; }
 .sound-settings label span { color: var(--red); font-variant-numeric: tabular-nums; }
 .sound-settings input[type="range"] { padding: 0; accent-color: var(--red); }

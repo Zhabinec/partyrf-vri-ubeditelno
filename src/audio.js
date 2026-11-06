@@ -5,9 +5,7 @@ const volumeKey = 'vri-ubeditelno-volume';
 const cues = new Map();
 const volumes = { typewriter: .35, 'drum-roll': .48, 'clock-tick': .38 };
 const cueLengths = { typewriter: .85, 'drum-roll': 2.4, 'clock-tick': .5 };
-const background = new Audio('./assets/local-forecast.mp3');
-background.loop = true;
-background.preload = 'none';
+const background = document.querySelector('#background-music');
 let context;
 let musicGain;
 let effectsGain;
@@ -22,13 +20,13 @@ try {
 export function setSoundPhase(next = phase) {
   phase = next;
   if (!context) return;
-  const playing = phase && !document.hidden && musicLevel.valueAsNumber > 0;
+  const playing = (phase || settings.open) && !document.hidden && musicLevel.valueAsNumber > 0;
   if (!playing) {
     background.pause();
     if (!phase && background.readyState) background.currentTime = 0;
     return;
   }
-  const level = phase === 'lobby' ? .38 : ['briefing', 'winner'].includes(phase) ? .04 : .19;
+  const level = !phase || phase === 'lobby' ? .38 : ['briefing', 'winner'].includes(phase) ? .04 : .19;
   musicGain.gain.setTargetAtTime(level * musicLevel.valueAsNumber / 100, context.currentTime, .08);
   if (background.paused) void background.play().catch(() => {});
 }
@@ -83,11 +81,14 @@ function showLevels() {
 
 showLevels();
 document.querySelector('#sound-toggle').addEventListener('click', () => {
-  unlockSound();
   document.querySelector('#header-menu').open = false;
   settings.showModal();
+  unlockSound();
 });
-settings.addEventListener('close', () => document.querySelector('#header-menu summary').focus());
+settings.addEventListener('close', () => {
+  setSoundPhase();
+  document.querySelector('#header-menu summary').focus();
+});
 settings.addEventListener('input', () => {
   unlockSound();
   effectsGain?.gain.setTargetAtTime(effectsLevel.valueAsNumber / 100, context.currentTime, .025);
