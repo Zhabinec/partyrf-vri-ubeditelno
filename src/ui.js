@@ -6,14 +6,35 @@ const button = (label, action) => `<button type="button" data-action="${action}"
 const kicker = text => `<p class="kicker">${text}</p>`;
 const imprint = text => `<div class="imprint"><span>Вечерний вестник</span><span>${text}</span></div>`;
 const stamp = text => `<span class="press-stamp">${text}</span>`;
+const pressSeal = `<svg class="press-seal" viewBox="0 0 100 86" aria-hidden="true" focusable="false">
+  <circle cx="50" cy="47" r="27" fill="none" stroke="currentColor"/>
+  <path fill="currentColor" d="m50 3 2 6 6 .1-5 3.7 2 6-5-3.7-5 3.7 2-6-5-3.7 6-.1z"/>
+  <g fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M43 79C17 74 7 52 20 27m-5 11-6-8m4 17-8-7m10 17-8-4m13 13-8-2m3-20 9-10m-8 20 9-9m-5 19 10-8"/>
+    <path d="M57 79C83 74 93 52 80 27m5 11 6-8m-4 17 8-7m-10 17 8-4m-13 13 8-2m-3-20-9-10m8 20-9-9m5 19-10-8"/>
+  </g>
+  <text x="50" y="62" text-anchor="middle" font-size="43" fill="currentColor">☭</text>
+</svg>`;
+const typewriter = `<svg class="press-typewriter" viewBox="0 0 184 108" aria-hidden="true" focusable="false">
+  <g stroke="currentColor" stroke-width="2.5" stroke-linejoin="round">
+    <path class="typewriter-sheet" d="M56 47 52 6h75l5 41z"/>
+    <path d="M61 16h50m-49 8h57m-56 8h40" fill="none"/>
+    <path d="M25 50h134M33 43h118v14H33zm-1 14h120l23 38H9z" fill="var(--field)"/>
+    <path d="M9 95h166v8H9zm47-12h72v5H56z" fill="currentColor"/>
+    <path d="M42 65h100m-108 9h116m-105-10v5m16-5v5m16-5v5m16-5v5m16-5v5m16-5v5m16-5v5" fill="none" stroke-dasharray="5 5"/>
+  </g>
+</svg>`;
 
 export function entrance(code, testBots = false) {
   return `
     <section class="intro">
-      ${imprint('Год издания 1952')}
+      <div class="front-masthead">
+        ${pressSeal}
+        <div><p>СССР · 1952</p><strong>Вечерний вестник</strong></div>
+      </div>
       <h1><span>Ври</span> <em>убедительно</em></h1>
       <p class="edition">Особый выпуск <span>◆</span> Цена 10 коп. <span>◆</span> 3–8 игроков</p>
-      <p class="lede">В заметке пропала важная деталь. Допиши её так, чтобы друзья поверили. Потом найди настоящую версию среди чужих выдумок.</p>
+      <div class="front-story">${typewriter}<p class="lede">В заметке пропала важная деталь. Допиши её так, чтобы друзья поверили. Потом найди настоящую версию среди чужих выдумок.</p></div>
       <ol class="beats"><li>Дописать заметку</li><li>Найти правду</li><li>Проверить тираж</li></ol>
     </section>
     <section class="panel entry">
@@ -45,7 +66,7 @@ function renderRoom(state) {
     }[state.nextPhase];
     return `<div class="print-scene">${imprint('Экстренный выпуск')}
       ${stamp(state.nextPhase === 'bluff' ? 'В ПЕЧАТЬ' : 'СРОЧНО')}
-      <h1>${title}</h1><p>${caption}</p></div>`;
+      <h1>${title}</h1><p>${caption}</p>${state.nextPhase === 'bluff' ? typewriter : ''}</div>`;
   }
   if (state.phase === 'lobby') {
     return `${kicker('РЕДАКЦИЯ · ' + state.players.length + ' / 8')}
@@ -88,8 +109,10 @@ function renderRoom(state) {
       <p class="lede">Заполни пропуск так, чтобы друзья поверили.</p>
       ${state.done ? waiting('Ответ принят. Ждём остальных.') : `
       <form data-form="bluff">
-        <label for="bluff">Твой вариант</label>
-        <input id="bluff" name="value" maxlength="70" required autocomplete="off">
+        <div class="typescript">
+          <label for="bluff">Рукопись в набор</label>
+          <input id="bluff" name="value" maxlength="70" required autocomplete="off" placeholder="Впечатай пропущенные слова">
+        </div>
         <button type="submit">Сдать в набор</button>
         <button type="button" class="secondary" data-action="skip">Пропустить</button>
       </form>`}`;
