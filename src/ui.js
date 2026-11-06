@@ -6,6 +6,14 @@ const button = (label, action) => `<button type="button" data-action="${action}"
 const kicker = text => `<p class="kicker">${text}</p>`;
 const imprint = text => `<div class="imprint"><span>Вечерний вестник</span><span>${text}</span></div>`;
 const stamp = text => `<span class="press-stamp">${text}</span>`;
+const manuscript = (type, label, submit) => `<form data-form="${type}">
+  <div class="typescript">
+    <label for="manuscript">${label}</label>
+    <input id="manuscript" name="value" maxlength="70" required autocomplete="off" placeholder="Короткий ответ">
+  </div>
+  <button type="submit">${submit}</button>
+  <button type="button" class="secondary" data-action="skip">Пропустить</button>
+</form>`;
 const pressSeal = `<svg class="press-seal" viewBox="0 0 100 86" aria-hidden="true" focusable="false">
   <circle cx="50" cy="47" r="27" fill="none" stroke="currentColor"/>
   <path fill="currentColor" d="m50 3 2 6 6 .1-5 3.7 2 6-5-3.7-5 3.7 2-6-5-3.7 6-.1z"/>
@@ -34,8 +42,8 @@ export function entrance(code, testBots = false) {
       </div>
       <h1><span>Ври</span> <em>убедительно</em></h1>
       <p class="edition">Особый выпуск <span>◆</span> Цена 10 коп. <span>◆</span> 3–8 игроков</p>
-      <div class="front-story">${typewriter}<p class="lede">В заметке пропала важная деталь. Допиши её так, чтобы друзья поверили. Потом найди настоящую версию среди чужих выдумок.</p></div>
-      <ol class="beats"><li>Дописать заметку</li><li>Найти правду</li><li>Проверить тираж</li></ol>
+      <div class="front-story">${typewriter}<p class="lede">Сегодня в газете — вы. Дай редакции честный ответ о себе. Друзья напишут свои версии, а вся компания попробует угадать, какая заметка правдива.</p></div>
+      <ol class="beats"><li>Дай интервью</li><li>Сочини слух</li><li>Вычисли утку</li></ol>
     </section>
     <section class="panel entry">
       ${kicker('ПРИЁМНАЯ')}
@@ -60,13 +68,19 @@ function renderRoom(state) {
   const finaleButton = label => host ? button(label, 'next-finale') : waiting('Хост перевернёт полосу.');
   if (state.phase === 'briefing') {
     const [title, caption] = {
-      bluff: ['Срочно в набор!', 'В заметке пропала деталь. У тебя 35 секунд, чтобы её придумать.'],
+      interview: ['Секретное интервью', 'У каждого свой вопрос. Ответь честно и сохрани ответ в тайне.'],
+      bluff: ['Срочно в набор!', 'Придумайте правдоподобный слух о герое выпуска.'],
       vote: ['В печать ушло всё!', 'Редактор перепутал версии. Выбери ту, которая была правдой.'],
       winner: ['Последний выпуск', 'Редакция подвела итоги. Сейчас узнаем, кто набрал больше очков.'],
     }[state.nextPhase];
     return `<div class="print-scene">${imprint('Экстренный выпуск')}
       ${stamp(state.nextPhase === 'bluff' ? 'В ПЕЧАТЬ' : 'СРОЧНО')}
       <h1>${title}</h1><p>${caption}</p>${state.nextPhase === 'bluff' ? typewriter : ''}</div>`;
+  }
+  if (state.phase === 'interview') {
+    return `${kicker('ТОЛЬКО ДЛЯ ТЕБЯ')}<h1>Секретное <em>интервью</em></h1>
+      <p class="topic">${escape(state.question)}</p>
+      ${state.done ? waiting('Редакция закрыла конверт. Ждём остальных.') : manuscript('interview', 'Твой честный ответ', 'Запечатать ответ')}`;
   }
   if (state.phase === 'lobby') {
     return `${kicker('РЕДАКЦИЯ · ' + state.players.length + ' / 8')}
@@ -97,35 +111,37 @@ function renderRoom(state) {
   if (state.phase === 'finished') {
     return `${kicker('ПОСЛЕСЛОВИЕ')}<h1>Архив <em>редакции</em></h1>
       <ul class="roster">${ranking().map(([id, score]) => `<li><span>${name(id)}</span><b>${score}</b></li>`).join('')}</ul>
-      <div class="press-archive">${state.history.map(({ prompt, options }) => `<details><summary>${escape(prompt)}</summary>
+      ${state.history.length ? '' : waiting('Никто не сдал интервью. Газета сегодня не вышла.')}
+      <div class="press-archive">${state.history.map(({ subject, prompt, options }) => `<details><summary>${name(subject)} · ${escape(prompt)}</summary>
         <p><strong>Правда:</strong> ${escape(options.find(option => option.truth).text)}</p></details>`).join('')}</div>
       ${host ? button('Сыграть ещё', 'start') : waiting('Хост может начать новую партию.')}`;
   }
 
   const round = state.round.join(' / ');
-  const fact = `<p class="topic">${escape(state.prompt).replace('___', '<strong class="blank">___</strong>')}</p>`;
+  const headline = answer => `${name(state.subject)} · ${escape(state.prompt).replace('___', () => answer)}`;
+  const fact = `<p class="topic">${headline('<strong class="blank">___</strong>')}</p>`;
+  if (state.phase === 'proof') {
+    const { clipping } = state;
+    return `<div class="print-scene">${imprint('Разоблачение · ' + round)}
+      ${stamp('ГАЗЕТНАЯ УТКА')}<h1>${headline(escape(clipping.text))}</h1>
+      <p>${clipping.author ? 'Автор — ' + name(clipping.author) : 'Версия редакции'}<br>Поверили: ${clipping.voters.map(name).join(', ')}</p>
+      ${host ? button(state.lastClipping ? 'Напечатать правду' : 'Следующая вырезка', 'next') : waiting('Хост перевернёт полосу.')}</div>`;
+  }
   if (state.phase === 'bluff') {
     return `${kicker('ВЫПУСК ' + round)}<h1>Дописать <em>до печати</em></h1>${fact}
-      <p class="lede">Заполни пропуск так, чтобы друзья поверили.</p>
-      ${state.done ? waiting('Ответ принят. Ждём остальных.') : `
-      <form data-form="bluff">
-        <div class="typescript">
-          <label for="bluff">Рукопись в набор</label>
-          <input id="bluff" name="value" maxlength="70" required autocomplete="off" placeholder="Впечатай пропущенные слова">
-        </div>
-        <button type="submit">Сдать в набор</button>
-        <button type="button" class="secondary" data-action="skip">Пропустить</button>
-      </form>`}`;
+      ${state.subject === state.me ? waiting('Это заметка о тебе. Остальные сочиняют версии, а ты хранишь тайну.')
+        : state.done ? waiting('Слух принят. Ждём остальных.') : manuscript('bluff', 'Твоя версия для газеты', 'Сдать в набор')}`;
   }
   if (state.phase === 'vote') {
     return `${kicker('ВЫПУСК ' + round)}<h1>Какой версии <em>верим?</em></h1>${fact}
-      ${state.done ? waiting('Голос принят. Ждём поправку редакции.') : `
+      ${state.subject === state.me ? waiting('Читатели голосуют за версии о тебе. Посмотрим, кто тебя знает.')
+        : state.done ? waiting('Голос принят. Ждём поправку редакции.') : `
         <div class="clippings" aria-label="Варианты ответа">${state.options.map(option =>
-          option.own ? `<p class="clipping">${escape(option.text)}<small>Твоя версия</small></p>`
-            : `<button type="button" class="clipping" data-action="vote" data-value="${escape(option.id)}">${escape(option.text)}</button>`).join('')}</div>`}`;
+          option.own ? `<p class="clipping">${headline(escape(option.text))}<small>Твоя версия</small></p>`
+            : `<button type="button" class="clipping" data-action="vote" data-value="${escape(option.id)}">${headline(escape(option.text))}</button>`).join('')}</div>`}`;
   }
   const truth = state.result.options.find(option => option.truth);
-  const corrected = escape(state.prompt).replace('___', () => '<mark>' + escape(truth.text) + '</mark>');
+  const corrected = headline('<mark>' + escape(truth.text) + '</mark>');
   return `<div class="correction-lead">${imprint('Поправка к выпуску ' + round)}
     ${stamp('ПРОВЕРЕНО')}<h1>Редакция <em>уточняет</em></h1>
     <p class="topic">${corrected}</p></div>
@@ -135,7 +151,7 @@ function renderRoom(state) {
       <span>${escape(option.text)}<small>${option.truth ? 'Подтверждено редакцией' : option.author ? 'Газетная утка · ' + name(option.author) : 'Версия редакции'}
       ${option.voters.length ? ' · Поверили: ' + option.voters.map(name).join(', ') : ''}</small></span></li>`).join('')}</ul>
     <ul class="roster">${ranking().map(([id, score]) => `<li><span>${name(id)} <small>+${state.result.points[id]} за раунд</small></span><b>${score}</b></li>`).join('')}</ul></div>
-    ${host ? button(state.round[0] === state.round[1] ? 'Показать итог' : 'Следующий факт', 'next') : waiting('Ждём следующего хода.')}`;
+    ${host ? button(state.round[0] === state.round[1] ? 'Показать итог' : 'Следующий выпуск', 'next') : waiting('Ждём следующего выпуска.')}`;
 }
 
 export function roomScreen(state) {

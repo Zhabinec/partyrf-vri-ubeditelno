@@ -65,7 +65,7 @@ function applyState(next, id) {
     if (changesScene) {
       app.firstElementChild.classList.add('page-turn');
       setSoundPhase(state.phase);
-      const cue = { briefing: 'typewriter', reveal: 'typewriter', winner: 'drum-roll' }[state.phase];
+      const cue = { briefing: 'typewriter', proof: 'typewriter', reveal: 'typewriter', winner: 'drum-roll' }[state.phase];
       if (cue) void playEffect(cue, () => state?.step === next.step);
     }
     roomLabel.textContent = 'КОМНАТА ' + state.code;
@@ -167,7 +167,7 @@ async function action(type, value) {
   const data = await request('rooms/' + session.code, { type, value, step: state.step }, session.token);
   if (id < lastApplied) return;
   applyState(data.state, id);
-  if (!data.error && ['bluff', 'vote'].includes(type) && state.phase === type) {
+  if (!data.error && ['interview', 'bluff', 'vote'].includes(type) && state.phase === type) {
     const step = state.step;
     void playEffect('typewriter', () => state?.step === step);
   }

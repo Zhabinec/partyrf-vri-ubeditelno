@@ -12,17 +12,19 @@ export function addTestBots(room) {
 
 export function runTestBots(room, now) {
   const { game } = room;
-  if (!room.testRoom || !['bluff', 'vote'].includes(game.phase)) return;
+  if (!room.testRoom || !['interview', 'bluff', 'vote'].includes(game.phase)) return;
   const members = [...room.members.values()].filter(member => !member.left);
   const players = members.map(member => member.id);
   const { step } = game;
-  for (const bot of members.filter(member => member.isBot)) {
+  for (const [index, bot] of members.filter(member => member.isBot).entries()) {
     if (game.step !== step) break;
     const state = view(game, bot.id);
-    if (state.done || now < state.deadline - state.duration + 650) continue;
+    if (state.done || state.subject === bot.id || now < state.deadline - state.duration + 650) continue;
     const send = (type, value) => act(game, { id: bot.id, isHost: false, players }, { type, value, step }, now);
-    if (state.phase === 'bluff') {
-      const decoys = game.deck[game.round].slice(2);
+    if (state.phase === 'interview') {
+      send('interview', game.interviews[bot.id].decoys[index]);
+    } else if (state.phase === 'bluff') {
+      const { decoys } = game.editions[game.round];
       const pitch = [...decoys, 'редакционный кот'].find(text => !send('bluff', text));
       if (!pitch) send('skip');
     } else {
