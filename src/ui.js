@@ -11,7 +11,7 @@ export function entrance(code, testBots = false) {
   return `
     <section class="intro">
       ${imprint('Год издания 1952')}
-      <h1>Ври <em>убедительно</em></h1>
+      <h1><span>Ври</span> <em>убедительно</em></h1>
       <p class="edition">Особый выпуск <span>◆</span> Цена 10 коп. <span>◆</span> 3–8 игроков</p>
       <p class="lede">В заметке пропала важная деталь. Допиши её так, чтобы друзья поверили. Потом найди настоящую версию среди чужих выдумок.</p>
       <ol class="beats"><li>Дописать заметку</li><li>Найти правду</li><li>Проверить тираж</li></ol>

@@ -62,15 +62,24 @@ body {
   padding-block: clamp(1.75rem, 6vw, 5rem);
 }
 .stage.in-room { display: block; }
-.intro { border-block: 4px double var(--ink); padding-block: 1rem; text-align: center; }
+.intro { container-type: inline-size; border-block: 4px double var(--ink); padding-block: .8rem; text-align: center; }
 h1, h2, p { margin: 0; }
 h1, h2 { line-height: 1.02; overflow-wrap: anywhere; }
 h1 { font-size: clamp(2.3rem, 6vw, 5.5rem); font-weight: 950; letter-spacing: -.055em; }
-.intro h1 { font-size: clamp(1.75rem, 5.4vw, 5.5rem); line-height: .92; text-transform: uppercase; text-wrap: balance; }
-.intro h1 em { display: block; }
+.intro h1 {
+  display: grid;
+  gap: .1em;
+  padding-block: .15em;
+  font-size: min(10.5cqi, 4.5rem);
+  line-height: 1;
+  text-transform: uppercase;
+  overflow-wrap: normal;
+}
+.intro h1 span { font-size: .66em; letter-spacing: .08em; }
+.intro h1 em { white-space: nowrap; }
 .intro .lede { margin-inline: auto; }
 .intro .beats { justify-content: center; }
-.edition { margin-block: 1rem; padding-block: .45rem; border-block: 1px solid var(--edge); font: 700 .78rem/1.4 var(--type); text-transform: uppercase; }
+.edition { margin-block: .65rem .75rem; padding-block: .4rem; border-block: 1px solid var(--edge); font: 700 .78rem/1.4 var(--type); text-transform: uppercase; }
 .edition span { color: var(--red); }
 .imprint {
   display: flex;
@@ -157,7 +166,6 @@ time { color: var(--red); font-size: 1.3rem; font-variant-numeric: tabular-nums;
   .masthead .header-menu { grid-column: 2; }
   .wordmark { font-size: .75rem; }
   .badge, .footer { font-size: .65rem; }
-  .intro h1 { font-size: clamp(1.75rem, 8vw, 4.5rem); }
   .round h1 { font-size: clamp(1.85rem, 6vw, 3rem); }
 }
 @media (prefers-reduced-motion: reduce) {
