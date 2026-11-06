@@ -1,4 +1,4 @@
-import { entrance, roomScreen } from './ui.js';
+import { entrance, roomScreen, voterAvatars } from './ui.js';
 import { playEffect, setSoundPhase, unlockSound } from './audio.js';
 
 const app = document.querySelector('#app');
@@ -33,7 +33,7 @@ function inviteUrl() {
 
 function updateClock() {
   const timer = document.querySelector('#timer');
-  if (!timer) return;
+  if (!timer || state.deadline === null) return;
   const remaining = Math.max(0, state.deadline - Date.now() - offset);
   const seconds = Math.ceil(remaining / 1000);
   timer.textContent = '0:' + String(seconds).padStart(2, '0');
@@ -53,7 +53,8 @@ function updateClock() {
 function applyState(next, id) {
   if (id < lastApplied) return;
   lastApplied = id;
-  const changesScene = state?.step !== next.step;
+  const previous = state;
+  const changesScene = previous?.step !== next.step;
   state = next;
   offset = next.now - Date.now();
   const key = JSON.stringify([state.step, state.done, state.phase, state.players, state.me, state.host]);
@@ -63,9 +64,9 @@ function applyState(next, id) {
     app.classList.add('in-room');
     app.innerHTML = roomScreen(state);
     if (changesScene) {
-      app.firstElementChild.classList.add('page-turn');
+      if (state.phase === 'briefing' || state.phase === 'winner') app.firstElementChild.classList.add('page-turn');
       setSoundPhase(state.phase);
-      const cue = { briefing: 'typewriter', proof: 'typewriter', reveal: 'typewriter', winner: 'drum-roll' }[state.phase];
+      const cue = { briefing: 'typewriter', reveal: 'typewriter', winner: 'drum-roll' }[state.phase];
       if (cue) void playEffect(cue, () => state?.step === next.step);
     }
     roomLabel.textContent = 'КОМНАТА ' + state.code;
@@ -76,6 +77,11 @@ function applyState(next, id) {
       const heading = app.querySelector('h1');
       heading.tabIndex = -1;
       heading.focus({ preventScroll: true });
+    }
+  } else if (state.phase === 'vote' && state.progress[0] !== previous.progress[0]) {
+    for (const tray of app.querySelectorAll('[data-voters]')) {
+      const option = state.options.find(item => item.id === tray.dataset.voters);
+      tray.innerHTML = voterAvatars(state.players, option.voters);
     }
   }
   document.querySelector('#progress').textContent = state.progress

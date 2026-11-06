@@ -33,7 +33,7 @@ function beginRound(game, now) {
   game.votes = {};
   game.options = [];
   game.result = null;
-  brief(game, 'bluff', now);
+  enter(game, 'bluff', now);
 }
 
 function closeInterviews(game, now) {
@@ -55,7 +55,7 @@ function beginVote(game, now, random) {
     if (!options.some(option => answerKey(option.text) === answerKey(text))) options.push({ text });
   }
   game.options = shuffle(options, random).map((option, index) => ({ ...option, id: String(index) }));
-  brief(game, 'vote', now);
+  enter(game, 'vote', now);
 }
 
 function reveal(game, now) {
@@ -74,9 +74,7 @@ function reveal(game, now) {
   for (const id of game.players) game.scores[id] += points[id];
   game.result = { options, points };
   game.history.push({ subject, prompt, ...game.result });
-  game.exposed = options.filter(option => !option.truth && option.voters.length);
-  game.exposure = 0;
-  enter(game, game.exposed.length ? 'proof' : 'reveal', now);
+  enter(game, 'reveal', now);
 }
 
 export function tick(game, now, random = Math.random) {
@@ -109,11 +107,6 @@ export function act(game, { id, isHost, players }, action, now, random = Math.ra
     game.round++;
     if (game.round === game.editions.length) brief(game, 'winner', now);
     else beginRound(game, now);
-    return;
-  }
-  if (game.phase === 'proof' && action.type === 'next' && isHost) {
-    game.exposure++;
-    enter(game, game.exposure < game.exposed.length ? 'proof' : 'reveal', now);
     return;
   }
   if (action.type === 'next-finale' && ['winner', 'moment'].includes(game.phase)) {
@@ -161,7 +154,7 @@ export function view(game, id) {
   const { phase, step, deadline } = game;
   const data = { phase, step, deadline, duration: durations[phase] ?? null };
   if (phase === 'lobby') return data;
-  if (phase !== 'proof') data.scores = game.scores;
+  data.scores = game.scores;
   if (phase === 'briefing') return { ...data, nextPhase: game.nextPhase };
   if (phase === 'interview') return {
     ...data, question: game.interviews[id]?.question, done: Object.hasOwn(game.answers, id),
@@ -178,16 +171,14 @@ export function view(game, id) {
   data.round = [game.round + 1, game.editions.length];
   data.prompt = prompt;
   data.subject = subject;
-  if (phase === 'proof') return {
-    ...data, clipping: game.exposed[game.exposure], lastClipping: game.exposure + 1 === game.exposed.length,
-  };
   if (phase === 'reveal') return { ...data, result: game.result };
   const answers = phase === 'bluff' ? game.bluffs : game.votes;
   data.done = Object.hasOwn(answers, id);
   data.progress = [Object.keys(answers).length, game.players.length - 1];
-  if (phase === 'vote' && id !== subject) {
+  if (phase === 'vote') {
     data.options = game.options.map(option => ({
       id: option.id, text: option.text, own: option.author === id,
+      voters: Object.keys(game.votes).filter(voter => game.votes[voter] === option.id),
     }));
   }
   return data;

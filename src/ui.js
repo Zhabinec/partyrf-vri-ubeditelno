@@ -6,6 +6,15 @@ const button = (label, action) => `<button type="button" data-action="${action}"
 const kicker = text => `<p class="kicker">${text}</p>`;
 const imprint = text => `<div class="imprint"><span>Вечерний вестник</span><span>${text}</span></div>`;
 const stamp = text => `<span class="press-stamp">${text}</span>`;
+
+export function voterAvatars(players, voters) {
+  return voters.map(id => {
+    const index = players.findIndex(player => player.id === id);
+    const name = players[index]?.name ?? 'Игрок';
+    const initials = name.split(/\s+/).slice(0, 2).map(word => [...word][0]).join('').toUpperCase();
+    return `<span class="voter-avatar avatar-${Math.max(0, index) % 8}" role="img" title="${escape(name)}" aria-label="${escape(name)}">${escape(initials)}</span>`;
+  }).join('');
+}
 const manuscript = (type, label, submit) => `<form data-form="${type}">
   <div class="typescript">
     <label for="manuscript">${label}</label>
@@ -69,13 +78,11 @@ function renderRoom(state) {
   if (state.phase === 'briefing') {
     const [title, caption] = {
       interview: ['Секретное интервью', 'У каждого свой вопрос. Ответь честно и сохрани ответ в тайне.'],
-      bluff: ['Срочно в набор!', 'Придумайте правдоподобный слух о герое выпуска.'],
-      vote: ['В печать ушло всё!', 'Редактор перепутал версии. Выбери ту, которая была правдой.'],
       winner: ['Последний выпуск', 'Редакция подвела итоги. Сейчас узнаем, кто набрал больше очков.'],
     }[state.nextPhase];
     return `<div class="print-scene">${imprint('Экстренный выпуск')}
-      ${stamp(state.nextPhase === 'bluff' ? 'В ПЕЧАТЬ' : 'СРОЧНО')}
-      <h1>${title}</h1><p>${caption}</p>${state.nextPhase === 'bluff' ? typewriter : ''}</div>`;
+      ${stamp(state.nextPhase === 'interview' ? 'В ПЕЧАТЬ' : 'СРОЧНО')}
+      <h1>${title}</h1><p>${caption}</p>${state.nextPhase === 'interview' ? typewriter : ''}</div>`;
   }
   if (state.phase === 'interview') {
     return `${kicker('ТОЛЬКО ДЛЯ ТЕБЯ')}<h1>Секретное <em>интервью</em></h1>
@@ -120,43 +127,37 @@ function renderRoom(state) {
   const round = state.round.join(' / ');
   const headline = answer => `${name(state.subject)} · ${escape(state.prompt).replace('___', () => answer)}`;
   const fact = `<p class="topic">${headline('<strong class="blank">___</strong>')}</p>`;
-  if (state.phase === 'proof') {
-    const { clipping } = state;
-    return `<div class="print-scene">${imprint('Разоблачение · ' + round)}
-      ${stamp('ГАЗЕТНАЯ УТКА')}<h1>${headline(escape(clipping.text))}</h1>
-      <p>${clipping.author ? 'Автор — ' + name(clipping.author) : 'Версия редакции'}<br>Поверили: ${clipping.voters.map(name).join(', ')}</p>
-      ${host ? button(state.lastClipping ? 'Напечатать правду' : 'Следующая вырезка', 'next') : waiting('Хост перевернёт полосу.')}</div>`;
-  }
   if (state.phase === 'bluff') {
     return `${kicker('ВЫПУСК ' + round)}<h1>Дописать <em>до печати</em></h1>${fact}
       ${state.subject === state.me ? waiting('Это заметка о тебе. Остальные сочиняют версии, а ты хранишь тайну.')
         : state.done ? waiting('Слух принят. Ждём остальных.') : manuscript('bluff', 'Твоя версия для газеты', 'Сдать в набор')}`;
   }
-  if (state.phase === 'vote') {
-    return `${kicker('ВЫПУСК ' + round)}<h1>Какой версии <em>верим?</em></h1>${fact}
-      ${state.subject === state.me ? waiting('Читатели голосуют за версии о тебе. Посмотрим, кто тебя знает.')
-        : state.done ? waiting('Голос принят. Ждём поправку редакции.') : `
-        <div class="clippings" aria-label="Варианты ответа">${state.options.map(option =>
-          option.own ? `<p class="clipping">${headline(escape(option.text))}<small>Твоя версия</small></p>`
-            : `<button type="button" class="clipping" data-action="vote" data-value="${escape(option.id)}">${headline(escape(option.text))}</button>`).join('')}</div>`}`;
-  }
-  const truth = state.result.options.find(option => option.truth);
-  const corrected = headline('<mark>' + escape(truth.text) + '</mark>');
-  return `<div class="correction-lead">${imprint('Поправка к выпуску ' + round)}
-    ${stamp('ПРОВЕРЕНО')}<h1>Редакция <em>уточняет</em></h1>
-    <p class="topic">${corrected}</p></div>
-    <div class="correction-notes">
-    <h2>Кто поверил</h2>
-    <ul class="roster answers">${state.result.options.map(option => `<li${option.truth ? ' class="verified"' : ''}>
-      <span>${escape(option.text)}<small>${option.truth ? 'Подтверждено редакцией' : option.author ? 'Газетная утка · ' + name(option.author) : 'Версия редакции'}
-      ${option.voters.length ? ' · Поверили: ' + option.voters.map(name).join(', ') : ''}</small></span></li>`).join('')}</ul>
-    <ul class="roster">${ranking().map(([id, score]) => `<li><span>${name(id)} <small>+${state.result.points[id]} за раунд</small></span><b>${score}</b></li>`).join('')}</ul></div>
-    ${host ? button(state.round[0] === state.round[1] ? 'Показать итог' : 'Следующий выпуск', 'next') : waiting('Ждём следующего выпуска.')}`;
+  const revealed = state.phase === 'reveal';
+  const canVote = !revealed && !state.done && state.me !== state.subject;
+  const options = revealed ? state.result.options : state.options;
+  const hint = revealed ? 'Редакция раскрыла правду и авторов выдумок.'
+    : state.me === state.subject ? 'Этот выпуск про тебя. Следи за голосами.'
+      : state.done ? 'Твой голос принят.' : 'Нажми на карточку, которой веришь.';
+  return `${kicker('ВЫПУСК ' + round)}<h1>Какой версии <em>верим?</em></h1>${fact}
+    <p class="ballot-hint" role="status">${hint}</p>
+    <div class="clippings" aria-label="Варианты ответа">${options.map(option => {
+      const selected = option.voters.includes(state.me);
+      const label = revealed ? (option.truth ? 'ПРАВДА' : option.author ? 'УТКА · ' + name(option.author) : 'УТКА РЕДАКЦИИ')
+        : selected ? 'Твой голос' : option.own ? 'Твоя версия' : '';
+      const content = `<span class="clipping-text">${escape(option.text)}</span>
+        <small class="clipping-label">${label}</small>
+        <span class="voter-avatars" data-voters="${option.id}">${voterAvatars(state.players, option.voters)}</span>`;
+      const className = 'clipping' + (option.truth ? ' verified' : '') + (selected ? ' voted' : '');
+      return canVote && !option.own
+        ? `<button type="button" class="${className}" data-action="vote" data-value="${option.id}">${content}</button>`
+        : `<div class="${className}">${content}</div>`;
+    }).join('')}</div>
+    ${revealed ? `<div class="ballot-next">${host ? button(state.round[0] === state.round[1] ? 'Показать итог' : 'Следующий выпуск', 'next') : waiting('Ждём следующего выпуска.')}</div>` : ''}`;
 }
 
 export function roomScreen(state) {
-  const clock = state.deadline !== null && state.phase !== 'briefing'
-    ? '<div class="countdown"><time id="timer"></time><progress id="time-bar" aria-label="Осталось времени"></progress><span id="clock-warning" hidden>Номер сдаётся!</span></div>' : '';
+  const clock = (state.deadline !== null && state.phase !== 'briefing') || state.phase === 'reveal'
+    ? `<div class="countdown${state.phase === 'reveal' ? ' countdown-ended' : ''}"><time id="timer">0:00</time><progress id="time-bar" aria-label="Осталось времени"></progress><span id="clock-warning" hidden>Номер сдаётся!</span></div>` : '';
   return `<section class="panel round">
     <section class="round-status" aria-label="Время и готовность"><span id="progress"></span>${clock}</section>
     ${renderRoom(state)}
