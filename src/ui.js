@@ -91,7 +91,7 @@ function renderRoom(state) {
       ${state.done ? waiting('Редакция закрыла конверт. Ждём остальных.') : manuscript('interview', 'Твой честный ответ', 'Запечатать ответ')}`;
   }
   if (state.phase === 'lobby') {
-    return `${kicker('РЕДАКЦИЯ · ' + state.players.length + ' / 8')}
+    return `${kicker('РЕДАКЦИЯ · ' + state.players.filter(player => !player.disconnected).length + ' / 8')}
       <h1>Летучка <em>редакции</em></h1>
       <p class="lede">Отправь друзьям код или ссылку. Для старта нужно минимум три игрока.</p>
       <details class="rules"><summary>Как играть · 8–15 минут</summary>
@@ -102,8 +102,8 @@ function renderRoom(state) {
       </details>
       <section class="invite"><strong>${state.code}</strong>${button('Скопировать ссылку', 'copy')}</section>
       <input id="invite-link" class="invite-link" aria-label="Ссылка на комнату" readonly>
-      <ul class="roster">${state.players.map(({ id }) => `<li><span>${name(id)}</span><b>${id === state.host ? 'Хост' : 'В комнате'}</b></li>`).join('')}</ul>
-      ${host && state.players.length >= 3 ? button('Начать выпуск', 'start') : waiting('Ждём начала выпуска.')}`;
+      <ul class="roster">${state.players.map(({ id, disconnected }) => `<li><span>${name(id)}</span><b>${disconnected ? 'Нет связи' : id === state.host ? 'Хост' : 'В комнате'}</b></li>`).join('')}</ul>
+      ${host && state.players.filter(player => !player.disconnected).length >= 3 ? button('Начать выпуск', 'start') : waiting('Ждём начала выпуска.')}`;
   }
   if (state.phase === 'winner') {
     const ranked = ranking();
@@ -164,6 +164,7 @@ function renderRoom(state) {
 }
 
 export function roomScreen(state) {
+  if (state.spectator) return '<section class="panel round"><section class="round-status"><span id="progress"></span></section><h1>Партия уже идёт</h1><p class="waiting">Ты вернулся после начала новой партии. Дождись финала, чтобы присоединиться к следующей.</p></section>';
   const clock = (state.deadline !== null && state.phase !== 'briefing') || state.phase === 'reveal'
     ? `<div class="countdown${state.phase === 'reveal' ? ' countdown-ended' : ''}"><time id="timer">0:00</time><progress id="time-bar" aria-label="Осталось времени"></progress><span id="clock-warning" hidden>Номер сдаётся!</span></div>` : '';
   return `<section class="panel round">

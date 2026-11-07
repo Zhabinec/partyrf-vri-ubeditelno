@@ -1,16 +1,21 @@
 import { createServer } from 'node:http';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { act, limits, newGame, tick, view, publicView, depart } from './src/game.mjs';
+import { act, limits, newGame, tick, view, publicView, depart, resume } from './src/game.mjs';
 import { addTestBots, runTestBots, testBotsEnabled } from './src/test-bots.mjs';
 
+import { touchPlayer, refreshPresence } from './src/presence.mjs';
+import { createRoomLimiter } from './src/room-limiter.mjs';
+
 const rooms = new Map();
+const limitRoomCreation = createRoomLimiter();
 const roomLifetime = 6 * 60 * 60 * 1000;
 const assets = new Map([
   ['/', ['index.html', 'text/html']],
   ['/styles.css', ['styles.css', 'text/css']],
   ['/src/main.js', ['src/main.js', 'text/javascript']],
   ['/src/ui.js', ['src/ui.js', 'text/javascript']],
+  ['/src/render-room.js', ['src/render-room.js', 'text/javascript']],
   ['/src/audio.js', ['src/audio.js', 'text/javascript']],
   ...['local-forecast', 'typewriter', 'drum-roll', 'clock-tick'].map(name => [
     '/assets/' + name + '.mp3', ['assets/' + name + '.mp3', 'audio/mpeg'],
@@ -46,15 +51,18 @@ async function readBody(req) {
 
 function snapshot(room, player) {
   const now = Date.now();
-  room.touched = now;
+  touchPlayer(room, player, now, resume);
+  refreshPresence(room, now, depart);
   tick(room.game, now);
+  const participants = room.game.active ?? room.game.order ?? room.game.players;
+  const spectator = !['lobby', 'finished'].includes(room.game.phase) && participants && !participants.includes(player.id);
   return {
-    ...view(room.game, player.id),
+    ...(spectator ? { ...publicView(room.game), spectator: true } : view(room.game, player.id)),
     now, code: room.code, me: player.id, host: room.host,
     ...(room.host === player.id ? { displayToken: room.displayToken } : {}),
     players: [...room.members.values()]
       .filter(member => room.game.phase !== 'lobby' || !member.left)
-      .map(({ id, name, isBot, left }) => ({ id, name, isBot, left })),
+      .map(({ id, name, isBot, left, disconnected }) => ({ id, name, isBot, left, disconnected })),
   };
 }
 
@@ -102,12 +110,19 @@ async function api(req, res, path) {
       ...publicView(room.game), now, code: room.code, host: room.host, me: null,
       players: [...room.members.values()]
         .filter(member => room.game.phase !== 'lobby' || !member.left)
-        .map(({ id, name, left }) => ({ id, name, left })),
+        .map(({ id, name, left, disconnected }) => ({ id, name, left, disconnected })),
     } });
     return;
   }
 
   if (req.method === 'POST' && ['/api/create', '/api/join', '/api/create-test'].includes(path)) {
+    if (path !== '/api/join') {
+      const retryAfter = limitRoomCreation(Date.now());
+      if (retryAfter) {
+        res.setHeader('Retry-After', String(retryAfter));
+        fail(429, 'Слишком много новых комнат. Подождите минуту.');
+      }
+    }
     send(res, 201, register(path, await readBody(req)));
     return;
   }
@@ -118,12 +133,14 @@ async function api(req, res, path) {
   const room = rooms.get(match[1]);
   const player = room?.members.get(req.headers.authorization?.replace(/^Bearer /, ''));
   if (!player || player.left) fail(401, 'Сессия комнаты закончилась. Подключись снова.');
+  touchPlayer(room, player, Date.now(), resume);
+  refreshPresence(room, Date.now(), depart);
   if (body?.type === 'leave') {
     player.left = true;
     depart(room.game, player.id, Date.now());
-    const successor = [...room.members.values()].find(member => !member.left && !member.isBot);
-    if (!successor) rooms.delete(room.code);
-    else if (room.host === player.id) room.host = successor.id;
+    const humans = [...room.members.values()].filter(member => !member.left && !member.isBot);
+    if (!humans.length) rooms.delete(room.code);
+    else refreshPresence(room, Date.now(), depart);
     if (room.game.phase === 'lobby') {
       for (const [token, member] of room.members) if (member.left) room.members.delete(token);
     }
@@ -131,7 +148,7 @@ async function api(req, res, path) {
     return;
   }
   if (body) {
-    const players = [...room.members.values()].filter(member => !member.left).map(member => member.id);
+    const players = [...room.members.values()].filter(member => !member.left && !member.disconnected).map(member => member.id);
     const error = act(room.game, {
       id: player.id, isHost: player.id === room.host,
       players,
@@ -175,6 +192,7 @@ setInterval(() => {
   for (const [code, room] of rooms) {
     if (now - room.touched > roomLifetime) rooms.delete(code);
     else {
+      refreshPresence(room, now, depart);
       tick(room.game, now);
       runTestBots(room, now);
     }

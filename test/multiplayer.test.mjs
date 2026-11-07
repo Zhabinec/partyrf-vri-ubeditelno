@@ -76,10 +76,11 @@ test('independent HTTP sessions, reconnect, host migration and screen access', a
   });
   async function api(path,body,token){
     const response=await fetch(origin+'/api/'+path,{method:body?'POST':'GET',headers:{...(body?{'Content-Type':'application/json'}:{}),...(token?{Authorization:'Bearer '+token}:{})},body:body?JSON.stringify(body):undefined});
-    return {status:response.status,...await response.json()};
+    return {status:response.status,retryAfter:response.headers.get('retry-after'),...await response.json()};
   }
   assert.equal((await api('create-test',{name:'Tester'})).status,404);
   const host=await api('create',{name:'Хост'});
+  assert.equal(host.state.players[0].disconnected,false);
   const code=host.state.code, path='rooms/'+code;
   const b=await api('join',{name:'Второй',code}), c=await api('join',{name:'Третий',code});
   assert.equal((await api(path,null,b.token)).state.players.length,3);
@@ -97,4 +98,19 @@ test('independent HTTP sessions, reconnect, host migration and screen access', a
   assert.equal((await api(screen)).status,200);
   await api(path,{type:'leave'},b.token);await api(path,{type:'leave'},c.token);
   assert.equal((await api(screen)).status,404);
+
+  const burst=[];
+  let limited;
+  for(let index=0;index<31;index++){
+    const result=await api('create',{name:'Burst '+index});
+    if(result.status===429){limited=result;break;}
+    assert.equal(result.status,201);burst.push(result);
+  }
+  assert.ok(limited,'creation burst must be limited');
+  assert.ok(Number(limited.retryAfter)>0);
+  const joined=await api('join',{name:'Invitation still works',code:burst[0].state.code});
+  assert.equal(joined.status,201,'creation limit must not block invitations');
+  await api('rooms/'+joined.state.code,{type:'leave'},joined.token);
+  for(const member of burst)await api('rooms/'+member.state.code,{type:'leave'},member.token);
+
 });

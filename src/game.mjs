@@ -201,3 +201,7 @@ export function publicView(game) {
   const { question, done, ...data } = view(game, null);
   return { ...data, ...(game.phase !== 'interview' ? { question } : {}), done: true, display: true };
 }
+
+export function resume(game, id) {
+  if (game.departed) game.departed = game.departed.filter(player => player !== id);
+}

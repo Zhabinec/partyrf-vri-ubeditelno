@@ -1,3 +1,4 @@
+import { renderRoom } from './render-room.js';
 import { entrance, roomScreen, voterAvatars } from './ui.js';
 import { playEffect, setSoundPhase, unlockSound } from './audio.js';
 
@@ -67,7 +68,7 @@ function applyState(next, id) {
     const shouldFocus = renderedKey !== undefined && !document.activeElement?.matches('.invite-link');
     renderedKey = key;
     app.classList.add('in-room');
-    app.innerHTML = roomScreen(state);
+    const draftFocused = renderRoom(app, roomScreen(state), previous, state);
     if (changesScene) {
       if (state.phase === 'briefing' || state.phase === 'winner') app.firstElementChild.classList.add('page-turn');
       setSoundPhase(state.phase);
@@ -87,7 +88,7 @@ function applyState(next, id) {
     if (displayMode) leaveRoom.textContent = 'Закрыть общий экран';
     const invite = document.querySelector('#invite-link');
     if (invite) invite.value = inviteUrl();
-    if (shouldFocus) {
+    if (shouldFocus && !draftFocused) {
       const heading = app.querySelector('h1');
       heading.tabIndex = -1;
       heading.focus({ preventScroll: true });
@@ -160,6 +161,8 @@ function showEntrance() {
   headerMenu.open = false;
   roomLabel.textContent = 'ИГРА ДЛЯ КОМПАНИИ';
   leaveRoom.hidden = true;
+  displayLink.hidden = true;
+  displayLink.removeAttribute('href');
   app.classList.remove('in-room');
   app.innerHTML = entrance(code, app.hasAttribute('data-test-bots'));
 }
