@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: partyrf-vri-ubeditelno
+    runtime: node
+    plan: free
+    buildCommand: node --version
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: TEST_BOTS
+        value: "0"

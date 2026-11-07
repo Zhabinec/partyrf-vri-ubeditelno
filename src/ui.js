@@ -85,6 +85,7 @@ function renderRoom(state) {
       <h1>${title}</h1><p>${caption}</p>${state.nextPhase === 'interview' ? typewriter : ''}</div>`;
   }
   if (state.phase === 'interview') {
+    if (state.display) return `<div class="print-scene">${typewriter}<h1>Секретное интервью</h1><p>Каждый отвечает на свой вопрос на телефоне. Ответы пока не зачитывайте.</p></div>`;
     return `${kicker('ТОЛЬКО ДЛЯ ТЕБЯ')}<h1>Секретное <em>интервью</em></h1>
       <p class="topic">${escape(state.question)}</p>
       ${state.done ? waiting('Редакция закрыла конверт. Ждём остальных.') : manuscript('interview', 'Твой честный ответ', 'Запечатать ответ')}`;
@@ -93,6 +94,12 @@ function renderRoom(state) {
     return `${kicker('РЕДАКЦИЯ · ' + state.players.length + ' / 8')}
       <h1>Летучка <em>редакции</em></h1>
       <p class="lede">Отправь друзьям код или ссылку. Для старта нужно минимум три игрока.</p>
+      <details class="rules"><summary>Как играть · 8–15 минут</summary>
+        <ol><li>Тайно ответь на свой вопрос. По одному выпуску выйдет на каждого, кто сдал интервью.</li>
+        <li>Придумывайте версии о герое и голосуйте за правду. Герой выпуска ждёт раскрытия, за свою выдумку голосовать нельзя.</li>
+        <li>За угаданную правду — 2 очка. За голос за твою выдумку — 1. Герою — по 1 очку за тех, кто его узнал. Побеждает максимальный счёт, ничья даёт общую победу.</li>
+        <li>Аватарки голосов видны сразу. Ответы открываются после голосования. Неприятный вопрос можно пропустить.</li></ol>
+      </details>
       <section class="invite"><strong>${state.code}</strong>${button('Скопировать ссылку', 'copy')}</section>
       <input id="invite-link" class="invite-link" aria-label="Ссылка на комнату" readonly>
       <ul class="roster">${state.players.map(({ id }) => `<li><span>${name(id)}</span><b>${id === state.host ? 'Хост' : 'В комнате'}</b></li>`).join('')}</ul>
@@ -119,23 +126,24 @@ function renderRoom(state) {
     return `${kicker('ПОСЛЕСЛОВИЕ')}<h1>Архив <em>редакции</em></h1>
       <ul class="roster">${ranking().map(([id, score]) => `<li><span>${name(id)}</span><b>${score}</b></li>`).join('')}</ul>
       ${state.history.length ? '' : waiting('Никто не сдал интервью. Газета сегодня не вышла.')}
-      <div class="press-archive">${state.history.map(({ subject, prompt, options }) => `<details><summary>${name(subject)} · ${escape(prompt)}</summary>
+      <div class="press-archive">${state.history.map(({ subject, question, options }) => `<details><summary>${name(subject)} · ${escape(question)}</summary>
         <p><strong>Правда:</strong> ${escape(options.find(option => option.truth).text)}</p></details>`).join('')}</div>
       ${host ? button('Сыграть ещё', 'start') : waiting('Хост может начать новую партию.')}`;
   }
 
   const round = state.round.join(' / ');
-  const headline = answer => `${name(state.subject)} · ${escape(state.prompt).replace('___', () => answer)}`;
-  const fact = `<p class="topic">${headline('<strong class="blank">___</strong>')}</p>`;
+  const fact = `<p class="topic"><strong>${name(state.subject)}</strong> · ${escape(state.question)}</p>`;
   if (state.phase === 'bluff') {
     return `${kicker('ВЫПУСК ' + round)}<h1>Дописать <em>до печати</em></h1>${fact}
-      ${state.subject === state.me ? waiting('Это заметка о тебе. Остальные сочиняют версии, а ты хранишь тайну.')
+      ${state.display ? waiting('Все, кроме героя, сочиняют версии на телефонах. Настоящий ответ остаётся в тайне.')
+        : state.subject === state.me ? waiting('Это заметка о тебе. Остальные сочиняют версии, а ты хранишь тайну.')
         : state.done ? waiting('Слух принят. Ждём остальных.') : manuscript('bluff', 'Твоя версия для газеты', 'Сдать в набор')}`;
   }
   const revealed = state.phase === 'reveal';
   const canVote = !revealed && !state.done && state.me !== state.subject;
   const options = revealed ? state.result.options : state.options;
   const hint = revealed ? 'Редакция раскрыла правду и авторов выдумок.'
+    : state.display ? 'Выбирайте ответ на телефонах. Аватарки появятся на выбранных карточках.'
     : state.me === state.subject ? 'Этот выпуск про тебя. Следи за голосами.'
       : state.done ? 'Твой голос принят.' : 'Нажми на карточку, которой веришь.';
   return `${kicker('ВЫПУСК ' + round)}<h1>Какой версии <em>верим?</em></h1>${fact}

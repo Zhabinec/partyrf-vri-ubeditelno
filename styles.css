@@ -322,3 +322,11 @@ time { color: var(--red); font-size: 1.3rem; font-variant-numeric: tabular-nums;
 .sound-settings label span { color: var(--red); font-variant-numeric: tabular-nums; }
 .sound-settings input[type="range"] { padding: 0; accent-color: var(--red); }
 
+
+.rules { margin-block: 1rem; padding: .65rem .8rem; border: 1px solid var(--edge); }
+.rules summary { cursor: pointer; font-weight: 800; min-height: 1.8rem; }
+.rules ol { margin: .7rem 0 0; padding-left: 1.2rem; }
+.rules li + li { margin-top: .4rem; }
+.menu-panel a.header-button:not([hidden]) { display: flex; align-items: center; text-decoration: none; }
+.display-mode .round { max-width: 70rem; }
+.display-mode > .round > h1 { text-align: center; }

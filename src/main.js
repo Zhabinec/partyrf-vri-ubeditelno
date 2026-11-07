@@ -8,10 +8,15 @@ const leaveRoom = document.querySelector('#leave-room');
 const headerMenu = document.querySelector('#header-menu');
 const menuToggle = headerMenu.querySelector('summary');
 let code = new URLSearchParams(location.search).get('room')?.toUpperCase() ?? '';
+const screenParams = new URLSearchParams(location.search);
+const displayCode = screenParams.get('display');
+const displayToken = screenParams.get('screen');
+const displayMode = Boolean(displayCode && displayToken);
+const displayLink = document.querySelector('#display-link');
 const sessionKey = 'vri-ubeditelno-session';
 let session;
 try { session = JSON.parse(sessionStorage.getItem(sessionKey)); } catch {}
-if (code && session?.code !== code) session = null;
+if (displayMode || (code && session?.code !== code)) session = null;
 let state;
 let renderedKey;
 let requestId = 0;
@@ -69,8 +74,17 @@ function applyState(next, id) {
       const cue = { briefing: 'typewriter', reveal: 'typewriter', winner: 'drum-roll' }[state.phase];
       if (cue) void playEffect(cue, () => state?.step === next.step);
     }
-    roomLabel.textContent = 'КОМНАТА ' + state.code;
+    roomLabel.textContent = (displayMode ? 'ОБЩИЙ ЭКРАН · ' : 'КОМНАТА ') + state.code;
+    app.classList.toggle('display-mode', displayMode);
+    displayLink.hidden = !state.displayToken;
+    if (state.displayToken) {
+      const url = new URL('./', location.href);
+      url.searchParams.set('display', state.code);
+      url.searchParams.set('screen', state.displayToken);
+      displayLink.href = url.href;
+    }
     leaveRoom.hidden = false;
+    if (displayMode) leaveRoom.textContent = 'Закрыть общий экран';
     const invite = document.querySelector('#invite-link');
     if (invite) invite.value = inviteUrl();
     if (shouldFocus) {
@@ -105,6 +119,16 @@ async function request(path, body, token) {
 }
 
 async function sync() {
+  if (displayMode) {
+    try {
+      const data = await request('display/' + encodeURIComponent(displayCode) + '/' + encodeURIComponent(displayToken));
+      applyState(data.state, ++requestId);
+      message();
+    } catch (error) {
+      message(error.status === 404 ? 'Комната закрыта. Открой новую ссылку с телефона хоста.' : 'Связь пропала. Пробуем подключиться…');
+    }
+    return;
+  }
   if (!session) return;
   const id = ++requestId;
   try {
@@ -151,6 +175,10 @@ document.addEventListener('keydown', event => {
 });
 
 leaveRoom.addEventListener('click', () => {
+  if (displayMode) {
+    location.assign(new URL('./', location.href).href);
+    return;
+  }
   if (!session) return;
   const previous = session;
   lastApplied = ++requestId;
@@ -241,7 +269,7 @@ async function poll() {
   setTimeout(poll, 900);
 }
 
-if (session) app.textContent = 'Подключаемся к комнате…';
+if (displayMode || session) app.textContent = 'Подключаемся к комнате…';
 else showEntrance();
 void poll();
 setInterval(updateClock, 250);

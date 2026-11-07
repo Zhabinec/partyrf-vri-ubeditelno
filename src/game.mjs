@@ -59,7 +59,7 @@ function beginVote(game, now, random) {
 }
 
 function reveal(game, now) {
-  const { subject, prompt } = game.editions[game.round];
+  const { subject, question } = game.editions[game.round];
   const points = Object.fromEntries(game.players.map(id => [id, 0]));
   const options = game.options.map(option => ({ ...option, voters: [] }));
   for (const [voter, optionId] of Object.entries(game.votes)) {
@@ -73,7 +73,7 @@ function reveal(game, now) {
   }
   for (const id of game.players) game.scores[id] += points[id];
   game.result = { options, points };
-  game.history.push({ subject, prompt, ...game.result });
+  game.history.push({ subject, question, ...game.result });
   enter(game, 'reveal', now);
 }
 
@@ -85,6 +85,19 @@ export function tick(game, now, random = Math.random) {
   else reveal(game, now);
 }
 
+function required(game) {
+  return (game.players ?? []).filter(id => !game.departed?.includes(id)
+    && (game.phase === 'interview' || id !== game.editions[game.round]?.subject));
+}
+
+export function depart(game, id, now) {
+  game.departed ??= [];
+  if (!game.departed.includes(id)) game.departed.push(id);
+  if (game.phase === 'interview' && required(game).every(player => Object.hasOwn(game.answers, player))) closeInterviews(game, now);
+  if (game.phase === 'bluff' && required(game).every(player => Object.hasOwn(game.bluffs, player))) beginVote(game, now, Math.random);
+  if (game.phase === 'vote' && required(game).every(player => Object.hasOwn(game.votes, player))) reveal(game, now);
+}
+
 export function act(game, { id, isHost, players }, action, now, random = Math.random) {
   tick(game, now, random);
   if (action.step !== game.step) return 'Этот этап уже закончился.';
@@ -93,7 +106,7 @@ export function act(game, { id, isHost, players }, action, now, random = Math.ra
     if (players.length < limits.minPlayers) return 'Нужно хотя бы три игрока.';
     const deck = shuffle(interviews, random);
     Object.assign(game, {
-      players, round: 0, history: [], editions: [], answers: {},
+      players, departed: [], round: 0, history: [], editions: [], answers: {},
       interviews: Object.fromEntries(players.map((player, index) => {
         const [question, prompt, decoys] = deck[index];
         return [player, { question, prompt, decoys }];
@@ -121,7 +134,7 @@ export function act(game, { id, isHost, players }, action, now, random = Math.ra
     if (Object.hasOwn(game.answers, id)) return 'Ответ уже принят.';
     if (action.type === 'interview' && !validAnswer) return 'Введи ответ до 70 символов.';
     game.answers[id] = action.type === 'skip' ? null : text;
-    if (game.players.every(player => Object.hasOwn(game.answers, player))) closeInterviews(game, now);
+    if (required(game).every(player => Object.hasOwn(game.answers, player))) closeInterviews(game, now);
     return;
   }
   const edition = game.editions[game.round];
@@ -136,7 +149,7 @@ export function act(game, { id, isHost, players }, action, now, random = Math.ra
       }
       game.bluffs[id] = text;
     }
-    if (Object.keys(game.bluffs).length === game.players.length - 1) beginVote(game, now, random);
+    if (required(game).every(player => Object.hasOwn(game.bluffs, player))) beginVote(game, now, random);
     return;
   }
   if (game.phase === 'vote' && action.type === 'vote') {
@@ -144,7 +157,7 @@ export function act(game, { id, isHost, players }, action, now, random = Math.ra
     const option = game.options.find(item => item.id === action.value);
     if (!option || option.author === id) return 'Выбери один из доступных вариантов.';
     game.votes[id] = option.id;
-    if (Object.keys(game.votes).length === game.players.length - 1) reveal(game, now);
+    if (required(game).every(player => Object.hasOwn(game.votes, player))) reveal(game, now);
     return;
   }
   return 'Это действие сейчас недоступно.';
@@ -158,7 +171,7 @@ export function view(game, id) {
   if (phase === 'briefing') return { ...data, nextPhase: game.nextPhase };
   if (phase === 'interview') return {
     ...data, question: game.interviews[id]?.question, done: Object.hasOwn(game.answers, id),
-    progress: [Object.keys(game.answers).length, game.players.length],
+    progress: [required(game).filter(player => Object.hasOwn(game.answers, player)).length, required(game).length],
   };
   if (phase === 'winner') return data;
   if (phase === 'moment') {
@@ -167,14 +180,14 @@ export function view(game, id) {
     return { ...data, moment };
   }
   if (phase === 'finished') return { ...data, history: game.history };
-  const { subject, prompt } = game.editions[game.round];
+  const { subject, question } = game.editions[game.round];
   data.round = [game.round + 1, game.editions.length];
-  data.prompt = prompt;
+  data.question = question;
   data.subject = subject;
   if (phase === 'reveal') return { ...data, result: game.result };
   const answers = phase === 'bluff' ? game.bluffs : game.votes;
   data.done = Object.hasOwn(answers, id);
-  data.progress = [Object.keys(answers).length, game.players.length - 1];
+  data.progress = [required(game).filter(player => Object.hasOwn(answers, player)).length, required(game).length];
   if (phase === 'vote') {
     data.options = game.options.map(option => ({
       id: option.id, text: option.text, own: option.author === id,
@@ -182,4 +195,9 @@ export function view(game, id) {
     }));
   }
   return data;
+}
+
+export function publicView(game) {
+  const { question, done, ...data } = view(game, null);
+  return { ...data, ...(game.phase !== 'interview' ? { question } : {}), done: true, display: true };
 }
