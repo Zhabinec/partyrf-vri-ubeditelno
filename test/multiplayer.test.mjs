@@ -114,6 +114,23 @@ test('independent HTTP sessions, reconnect, host migration and screen access', a
   assert.equal((await api(closedPath,{type:'start',step:ready.state.step},observer.token)).status,200);
   for(const member of [observer,returned,third]) await api(closedPath,{type:'leave'},member.token);
 
+  // Closing a tab may emit no pagehide signal at all. Only the other humans keep polling.
+  const silent=await api('create',{name:'Closed tab host'});
+  const silentPath='rooms/'+silent.state.code;
+  const remaining=await api('join',{name:'Still connected',code:silent.state.code});
+  const since=Date.now();let observed;
+  do {
+    observed=await api(silentPath,null,remaining.token);
+    if(Date.now()-since<12_000) assert.equal(observed.state.host,silent.state.me);
+    if(observed.state.host===remaining.state.me) break;
+    await new Promise(resolve=>setTimeout(resolve,500));
+  } while(Date.now()-since<17_000);
+  assert.equal(observed.state.host,remaining.state.me,'host must migrate without a browser close signal');
+  const replacement=await api('join',{name:'Closed tab host',code:silent.state.code});
+  assert.equal(replacement.status,201,'closed tab name must be reusable');
+  assert.equal((await api(silentPath,null,silent.token)).status,401);
+  for(const member of [remaining,replacement]) await api(silentPath,{type:'leave'},member.token);
+
   const burst=[];
   let limited;
   for(let index=0;index<31;index++){
