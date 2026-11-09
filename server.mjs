@@ -1,8 +1,9 @@
+import { botSetupMarkup } from './src/bot-setup.js';
 import { createServer } from 'node:http';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { act, limits, newGame, tick, view, publicView, depart, resume } from './src/game.mjs';
-import { addTestBots, runTestBots, testBotsEnabled } from './src/test-bots.mjs';
+import { addTestBots, runTestBots, testBotsEnabled, botLimits, getBotCount } from './src/test-bots.mjs';
 
 import { touchPlayer, refreshPresence, markTabClosed, releaseDisconnectedName } from './src/presence.mjs';
 import { createRoomLimiter } from './src/room-limiter.mjs';
@@ -15,6 +16,7 @@ const assets = new Map([
   ['/styles.css', ['styles.css', 'text/css']],
   ['/src/main.js', ['src/main.js', 'text/javascript']],
   ['/src/ui.js', ['src/ui.js', 'text/javascript']],
+  ['/src/bot-setup.js', ['src/bot-setup.js', 'text/javascript']],
   ['/src/render-room.js', ['src/render-room.js', 'text/javascript']],
   ['/src/exit-room.js', ['src/exit-room.js', 'text/javascript']],
   ['/src/audio.js', ['src/audio.js', 'text/javascript']],
@@ -70,6 +72,8 @@ function snapshot(room, player) {
 function register(path, body) {
   const testRoom = path === '/api/create-test';
   if (testRoom && !testBotsEnabled) fail(404, 'Тестовый режим выключен.');
+  const botCount = testRoom ? getBotCount(body.botCount) : null;
+  if (testRoom && botCount === null) fail(400, 'Выбери от ' + botLimits.min + ' до ' + botLimits.max + ' ботов.');
   const enteredName = typeof body.name === 'string' ? body.name.trim() : '';
   const name = enteredName || (testRoom ? 'Тестер' : '');
   if (!name || name.length > limits.name) fail(400, 'Введи имя до 24 символов.');
@@ -97,7 +101,7 @@ function register(path, body) {
   const player = { id: randomUUID(), name };
   room.members.set(token, player);
   room.host ??= player.id;
-  if (testRoom) addTestBots(room);
+  if (testRoom) addTestBots(room, botCount);
   return { token, state: snapshot(room, player) };
 }
 
@@ -187,7 +191,7 @@ const server = createServer(async (req, res) => {
       'Content-Security-Policy': "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'self'",
     });
     res.end(path === '/' && testBotsEnabled
-      ? contents.toString().replace('id="app"', 'id="app" data-test-bots')
+      ? contents.toString().replace('id="app"', 'id="app" data-test-bots').replace('</body>', botSetupMarkup(botLimits) + '</body>')
       : contents);
   } catch (error) {
     if (!error.status) console.error(error);

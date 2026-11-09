@@ -1,11 +1,15 @@
 import { randomUUID } from 'node:crypto';
-import { act, view } from './game.mjs';
+import { act, view, limits } from './game.mjs';
 
 export const testBotsEnabled = process.env.TEST_BOTS !== '0';
-const names = ['Бот Наборщик', 'Бот Репортёр', 'Бот Корректор', 'Бот Редактор', 'Бот Печатник'];
+export const botLimits = { min: limits.minPlayers - 1, max: limits.maxPlayers - 1, default: 5 };
+export function getBotCount(value = botLimits.default) {
+  return Number.isInteger(value) && value >= botLimits.min && value <= botLimits.max ? value : null;
+}
+const names = ['Бот Наборщик', 'Бот Репортёр', 'Бот Корректор', 'Бот Редактор', 'Бот Печатник', 'Бот Верстальщик', 'Бот Курьер'];
 
-export function addTestBots(room) {
-  for (const name of names) {
+export function addTestBots(room, count = botLimits.default) {
+  for (const name of names.slice(0, count)) {
     room.members.set(randomUUID(), { id: randomUUID(), name, isBot: true });
   }
 }

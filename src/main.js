@@ -1,3 +1,4 @@
+import { createBotSetup } from './bot-setup.js';
 import { createExitQueue } from './exit-room.js';
 import { renderRoom } from './render-room.js';
 import { entrance, roomScreen, voterAvatars } from './ui.js';
@@ -29,6 +30,15 @@ let lastTick;
 let exitStorage;
 try { exitStorage = localStorage; } catch {}
 const exits = createExitQueue(request, exitStorage);
+const botSetup = createBotSetup(async (name, botCount) => {
+  message();
+  unlockSound(true);
+  await exits.flush();
+  const data = await request('create-test', { name, botCount });
+  session = { code: data.state.code, token: data.token };
+  sessionStorage.setItem(sessionKey, JSON.stringify(session));
+  applyState(data.state, ++requestId);
+});
 
 window.addEventListener('pagehide', () => {
   if (!session) return;
@@ -267,6 +277,10 @@ app.addEventListener('click', event => {
   unlockSound();
   const control = event.target.closest('[data-action]');
   if (!control) return;
+  if (control.dataset.action === 'test-setup') {
+    botSetup.open(app.querySelector('#name')?.value, control);
+    return;
+  }
   void interact(async () => {
     if (control.dataset.action === 'copy') {
       try {

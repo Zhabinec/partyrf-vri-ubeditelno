@@ -78,6 +78,9 @@ test('independent HTTP sessions, reconnect, host migration and screen access', a
     const response=await fetch(origin+'/api/'+path,{method:body?'POST':'GET',headers:{...(body?{'Content-Type':'application/json'}:{}),...(token?{Authorization:'Bearer '+token}:{})},body:body?JSON.stringify(body):undefined});
     return {status:response.status,retryAfter:response.headers.get('retry-after'),...await response.json()};
   }
+  const disabledPage=await fetch(origin).then(response=>response.text());
+  assert.ok(!disabledPage.includes('data-test-bots'));
+  assert.ok(!disabledPage.includes('id="bot-settings"'));
   assert.equal((await api('create-test',{name:'Tester'})).status,404);
   const host=await api('create',{name:'Хост'});
   assert.equal(host.state.players[0].disconnected,false);

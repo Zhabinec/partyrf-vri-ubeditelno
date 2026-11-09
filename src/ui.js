@@ -64,7 +64,7 @@ export function entrance(code, testBots = false) {
         <input id="code" class="room-code" name="code" maxlength="6" value="${escape(code)}" placeholder="Введи код друга" autocomplete="off" autocapitalize="characters">
         <button type="submit" name="mode" value="join">Войти в комнату</button>
         ${code ? '' : '<button type="submit" name="mode" value="create" class="secondary">Создать комнату</button>'}
-        ${testBots && !code ? '<button type="submit" name="mode" value="create-test" class="secondary" formnovalidate>Тест с 5 ботами</button>' : ''}
+        ${testBots && !code ? '<button type="button" data-action="test-setup" class="secondary">Тест с ботами</button>' : ''}
       </form>
     </section>`;
 }

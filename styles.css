@@ -330,3 +330,16 @@ time { color: var(--red); font-size: 1.3rem; font-variant-numeric: tabular-nums;
 .menu-panel a.header-button:not([hidden]) { display: flex; align-items: center; text-decoration: none; }
 .display-mode .round { max-width: 70rem; }
 .display-mode > .round > h1 { text-align: center; }
+
+.bot-settings { --bot-accent: var(--red); }
+.bot-settings h2 { margin-bottom: .65rem; }
+.bot-description { margin: 0 0 1rem; }
+.bot-settings form { display: grid; gap: .65rem; }
+.bot-stepper { display: grid; grid-template-columns: 2.8rem minmax(0, 1fr) 2.8rem; gap: .65rem; align-items: center; }
+.bot-stepper button { padding: .4rem; font-size: 1.4rem; min-height: 2.8rem; }
+.bot-stepper input { text-align: center; font-weight: 900; font-size: 1.4rem; }
+.bot-summary { margin: .25rem 0; font-weight: 750; }
+.bot-crew { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .4rem; }
+.bot-crew span { display: grid; place-items: center; min-width: 2.7rem; min-height: 2.7rem; padding: .35rem; border: 1px solid var(--edge); background: var(--field); font-size: .65rem; font-weight: 900; }
+.bot-crew .bot-human { border-color: var(--bot-accent); border-width: 2px; }
+#bot-error { margin: .2rem 0; }
