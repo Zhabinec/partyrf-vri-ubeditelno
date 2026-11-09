@@ -1,3 +1,4 @@
+import { createExitQueue } from './exit-room.js';
 import { renderRoom } from './render-room.js';
 import { entrance, roomScreen, voterAvatars } from './ui.js';
 import { playEffect, setSoundPhase, unlockSound } from './audio.js';
@@ -25,6 +26,18 @@ let lastApplied = 0;
 let offset = 0;
 let busy = false;
 let lastTick;
+let exitStorage;
+try { exitStorage = localStorage; } catch {}
+const exits = createExitQueue(request, exitStorage);
+
+window.addEventListener('pagehide', () => {
+  if (!session) return;
+  void fetch('./api/rooms/' + session.code, {
+    method: 'POST', keepalive: true,
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.token },
+    body: JSON.stringify({ type: 'disconnect' }),
+  }).catch(() => {});
+});
 
 function message(text = '') {
   feedback.textContent = text;
@@ -113,6 +126,7 @@ async function request(path, body, token) {
     },
     body: body ? JSON.stringify(body) : undefined,
     signal: AbortSignal.timeout(6000),
+    keepalive: body?.type === 'leave',
   });
   const data = await response.json();
   if (!response.ok && !data.state) throw Object.assign(new Error(data.error), { status: response.status });
@@ -196,7 +210,7 @@ leaveRoom.addEventListener('click', () => {
   message();
   showEntrance();
   app.querySelector('#name')?.focus();
-  void request('rooms/' + previous.code, { type: 'leave' }, previous.token).catch(() => {});
+  void exits.enqueue(previous).catch(() => message('Выход пока не подтверждён. Повторяем при восстановлении связи.'));
 });
 
 async function action(type, value) {
@@ -237,6 +251,7 @@ app.addEventListener('submit', event => {
   void interact(async () => {
     unlockSound(type === 'entry');
     if (type === 'entry') {
+      await exits.flush();
       const data = await request(control.value || 'join', { name: fields.get('name'), code: fields.get('code') });
       session = { code: data.state.code, token: data.token };
       sessionStorage.setItem(sessionKey, JSON.stringify(session));
@@ -268,6 +283,7 @@ app.addEventListener('click', event => {
 });
 
 async function poll() {
+  await exits.flush().catch(() => {});
   if (!busy) await sync();
   setTimeout(poll, 900);
 }

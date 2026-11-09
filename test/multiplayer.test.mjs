@@ -99,6 +99,21 @@ test('independent HTTP sessions, reconnect, host migration and screen access', a
   await api(path,{type:'leave'},b.token);await api(path,{type:'leave'},c.token);
   assert.equal((await api(screen)).status,404);
 
+  const closed=await api('create',{name:'Same host name'});
+  const closedPath='rooms/'+closed.state.code;
+  const observer=await api('join',{name:'Observer',code:closed.state.code});
+  assert.equal((await api(closedPath,{type:'disconnect'},closed.token)).status,200);
+  await new Promise(resolve=>setTimeout(resolve,5_100));
+  assert.equal((await api(closedPath,null,observer.token)).state.host,observer.state.me);
+  const returned=await api('join',{name:'Same host name',code:closed.state.code});
+  assert.equal(returned.status,201);
+  assert.notEqual(returned.state.me,closed.state.me);
+  assert.equal((await api(closedPath,null,closed.token)).status,401);
+  const third=await api('join',{name:'Third',code:closed.state.code});
+  const ready=await api(closedPath,null,observer.token);
+  assert.equal((await api(closedPath,{type:'start',step:ready.state.step},observer.token)).status,200);
+  for(const member of [observer,returned,third]) await api(closedPath,{type:'leave'},member.token);
+
   const burst=[];
   let limited;
   for(let index=0;index<31;index++){

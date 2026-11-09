@@ -1,5 +1,5 @@
 // Presence is separate from explicit leave: a temporary disconnect keeps the session valid.
-export const presenceTimeout = 45_000;
+export const presenceTimeout = 15_000;
 
 export function touchPlayer(room, player, now, resume) {
   if (player.disconnected) resume(room.game, player.id);
@@ -20,5 +20,21 @@ export function refreshPresence(room, now, depart) {
   if (!host || host.left || host.disconnected) {
     const successor = members.find(player => !player.left && !player.isBot && !player.disconnected);
     if (successor) room.host = successor.id;
+  }
+}
+
+// pagehide also fires on reload: a new heartbeat cancels this short grace period.
+export function markTabClosed(player, now) {
+  player.lastSeen = now - presenceTimeout + 5_000;
+}
+
+export function releaseDisconnectedName(room, name, now, depart) {
+  if (!['lobby', 'finished'].includes(room.game.phase)) return;
+  for (const [token, player] of room.members) {
+    if (!player.left && player.disconnected && player.name.toLowerCase() === name.toLowerCase()) {
+      player.left = true;
+      depart(room.game, player.id, now);
+      if (room.game.phase === 'lobby') room.members.delete(token);
+    }
   }
 }

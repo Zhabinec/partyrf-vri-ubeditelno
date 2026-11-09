@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { act, limits, newGame, tick, view, publicView, depart, resume } from './src/game.mjs';
 import { addTestBots, runTestBots, testBotsEnabled } from './src/test-bots.mjs';
 
-import { touchPlayer, refreshPresence } from './src/presence.mjs';
+import { touchPlayer, refreshPresence, markTabClosed, releaseDisconnectedName } from './src/presence.mjs';
 import { createRoomLimiter } from './src/room-limiter.mjs';
 
 const rooms = new Map();
@@ -16,6 +16,7 @@ const assets = new Map([
   ['/src/main.js', ['src/main.js', 'text/javascript']],
   ['/src/ui.js', ['src/ui.js', 'text/javascript']],
   ['/src/render-room.js', ['src/render-room.js', 'text/javascript']],
+  ['/src/exit-room.js', ['src/exit-room.js', 'text/javascript']],
   ['/src/audio.js', ['src/audio.js', 'text/javascript']],
   ...['local-forecast', 'typewriter', 'drum-roll', 'clock-tick'].map(name => [
     '/assets/' + name + '.mp3', ['assets/' + name + '.mp3', 'audio/mpeg'],
@@ -82,12 +83,14 @@ function register(path, body) {
   } else {
     room = rooms.get(String(body.code).trim().toUpperCase());
     if (!room) fail(404, 'Комната не найдена. Проверь код.');
+    refreshPresence(room, Date.now(), depart);
     tick(room.game, Date.now());
     if (!['lobby', 'finished'].includes(room.game.phase)) fail(409, 'Партия уже идёт. Зайди после финала.');
+    releaseDisconnectedName(room, name, Date.now(), depart);
     const present = [...room.members.values()].filter(player => !player.left);
     if (present.length >= limits.maxPlayers) fail(409, 'Комната заполнена.');
     if (present.some(player => player.name.toLowerCase() === name.toLowerCase())) {
-      fail(409, 'Это имя уже занято.');
+      fail(409, 'Это имя уже в комнате. Если вкладка закрыта, подожди до 15 секунд и попробуй снова.');
     }
   }
   const token = randomUUID();
@@ -135,6 +138,11 @@ async function api(req, res, path) {
   if (!player || player.left) fail(401, 'Сессия комнаты закончилась. Подключись снова.');
   touchPlayer(room, player, Date.now(), resume);
   refreshPresence(room, Date.now(), depart);
+  if (body?.type === 'disconnect') {
+    markTabClosed(player, Date.now());
+    send(res, 200, {});
+    return;
+  }
   if (body?.type === 'leave') {
     player.left = true;
     depart(room.game, player.id, Date.now());

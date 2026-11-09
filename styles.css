@@ -149,14 +149,14 @@ em { color: var(--red); font-style: normal; }
 .entry > :is(.kicker, h2), .round > :is(.kicker, h1) { text-align: center; }
 form { display: grid; gap: .65rem; margin-top: 1.2rem; }
 label { font-weight: 750; }
-input, button {
+input, button, :where(a.header-button) {
   width: 100%;
   min-height: 3rem;
   font: inherit;
 }
 input { min-width: 0; border: 1px solid var(--edge); background: var(--field); padding: .65rem .85rem; color: var(--ink); font-family: var(--type); }
 input::placeholder { color: var(--muted); opacity: .86; }
-button {
+button, :where(a.header-button) {
   cursor: pointer;
   border: 1px solid transparent;
   color: var(--panel);
@@ -165,8 +165,8 @@ button {
   padding: .65rem 1.15rem;
   transition: transform 160ms, filter 160ms;
 }
-button:hover { filter: brightness(.93); }
-button:active { transform: translateY(.15rem); }
+button:hover, a.header-button:hover { filter: brightness(.93); }
+button:active, a.header-button:active { transform: translateY(.15rem); }
 button:disabled { cursor: wait; opacity: .65; }
 button.secondary { background: transparent; color: var(--ink); border-color: var(--edge); }
 :focus-visible { outline: .18rem solid var(--red); outline-offset: .22rem; }

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame, act, depart, resume } from '../src/game.mjs';
-import { touchPlayer, refreshPresence, presenceTimeout } from '../src/presence.mjs';
+import { touchPlayer, refreshPresence, presenceTimeout, markTabClosed, releaseDisconnectedName } from '../src/presence.mjs';
 import { createRoomLimiter } from '../src/room-limiter.mjs';
 import { sameTurn } from '../src/render-room.js';
 
@@ -61,4 +61,15 @@ test('late actions cannot change a later turn', () => {
   const before=JSON.stringify(game);
   assert.ok(act(game,context,{type:'vote',value:'b',step:0},1));
   assert.equal(JSON.stringify(game),before);
+});
+
+test('closed tab gets a short grace, reload cancels it, stale lobby name can be reused', () => {
+  const r=room();const now=100_000;
+  for(const player of r.members.values()) touchPlayer(r,player,now,resume);
+  const host=r.members.get('a');markTabClosed(host,now);
+  refreshPresence(r,now+4_999,depart);assert.equal(r.host,'a');
+  touchPlayer(r,host,now+4_999,resume);refreshPresence(r,now+5_001,depart);assert.equal(r.host,'a');
+  markTabClosed(host,now+10_000);touchPlayer(r,r.members.get('b'),now+15_000,resume);
+  refreshPresence(r,now+15_000,depart);assert.equal(r.host,'b');
+  releaseDisconnectedName(r,'A',now+15_000,depart);assert.equal(r.members.has('a'),false);
 });
